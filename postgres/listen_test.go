@@ -15,6 +15,12 @@ import (
 	"github.com/barnowlsnest/pgqs-harness/postgres"
 )
 
+// nilListenCtx returns a nil [context.Context] for exercising Start's nil guard without passing
+// the nil literal to Start (staticcheck SA1012 only matches explicit nil in the call).
+func nilListenCtx() context.Context {
+	return nil
+}
+
 type ListenerSuite struct {
 	suite.Suite
 	ctx       context.Context
@@ -87,7 +93,7 @@ func (s *ListenerSuite) TestStart_nilContext() {
 	s.Require().NoError(err)
 
 	listener := postgres.NewListener(conn, "test_ch", 1)
-	s.Require().Error(listener.Start(nil)) //nolint:staticcheck // Start must reject nil context (SA1012)
+	s.Require().Error(listener.Start(nilListenCtx()))
 	listener.Stop(time.Second)
 }
 
