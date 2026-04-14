@@ -22,3 +22,7 @@ tasks:
   build:
     cmds:
       - go build .
+
+  test:
+    cmds:
+      - go test -v -race -timeout 5m ./...

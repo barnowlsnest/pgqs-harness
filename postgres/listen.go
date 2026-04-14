@@ -19,14 +19,17 @@ type (
 	Notifications = pgconn.Notification
 
 	Listener struct {
-		channel         string
-		mu              sync.Mutex
-		onceStart       sync.Once
-		onceStop        sync.Once
-		notificationsCh chan *Notifications
-		err             error
-		conn            *DBConn
-		cancelFunc      context.CancelFunc
+		channel   string
+		mu        sync.Mutex
+		onceStart sync.Once
+		onceStop  sync.Once
+		wgListen  sync.WaitGroup // started via Go; Wait in Stop before UNLISTEN on the same conn
+		// NotificationBuffer is the capacity of Notifications() channel. Set before Start; zero or negative defaults to 1.
+		NotificationBuffer int
+		notificationsCh    chan *Notifications
+		err                error
+		conn               *DBConn
+		cancelFunc         context.CancelFunc
 	}
 )
 
@@ -85,11 +88,13 @@ func (l *Listener) Start(ctx context.Context) error {
 			return
 		}
 
-		l.notificationsCh = make(chan *pgconn.Notification, 1)
-		go func(ctx context.Context, l *Listener) {
+		buf := max(l.NotificationBuffer, 1)
+		l.notificationsCh = make(chan *pgconn.Notification, buf)
+		listenCtx := cancellable
+		l.wgListen.Go(func() {
 			defer close(l.notificationsCh)
 			for {
-				n, err := l.conn.Conn().WaitForNotification(ctx)
+				n, err := l.conn.Conn().WaitForNotification(listenCtx)
 				if err != nil {
 					l.setErr(err)
 					return
@@ -97,7 +102,7 @@ func (l *Listener) Start(ctx context.Context) error {
 
 				l.notificationsCh <- n
 			}
-		}(cancellable, l)
+		})
 	})
 	return l.Err()
 }
@@ -108,10 +113,11 @@ func (l *Listener) Stop(timeout time.Duration) {
 		if l.cancelFunc != nil {
 			l.cancelFunc()
 		}
+		l.wgListen.Wait()
 		if l.conn != nil {
 			timeoutCtx, cancel := context.WithTimeout(context.Background(), timeout)
 			defer cancel()
-			_, err := l.conn.Exec(timeoutCtx, fmt.Sprintf("UNLISTEN %s", l.channel))
+			_, err := l.conn.Exec(timeoutCtx, fmt.Sprintf("UNLISTEN %q;", l.channel))
 			if err != nil {
 				log.Error(err)
 			}
