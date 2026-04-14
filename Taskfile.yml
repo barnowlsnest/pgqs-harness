@@ -25,4 +25,5 @@ tasks:
 
   test:
     cmds:
+      - go clean -testcache
       - go test -v -race -timeout 5m ./...
