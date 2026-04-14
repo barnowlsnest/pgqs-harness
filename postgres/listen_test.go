@@ -77,7 +77,7 @@ func (s *ListenerSuite) TestMapNotificationToLogFields() {
 }
 
 func (s *ListenerSuite) TestNewListenerFromPool_nilPool() {
-	l, err := postgres.NewListenerFromPool(s.ctx, nil, "ch")
+	l, err := postgres.NewListenerFromPool(s.ctx, nil, "ch", 1)
 	s.Nil(l)
 	s.Require().Error(err)
 }
@@ -86,13 +86,13 @@ func (s *ListenerSuite) TestStart_nilContext() {
 	conn, err := s.pool.Acquire(s.ctx)
 	s.Require().NoError(err)
 
-	listener := postgres.NewListener(conn, "test_ch")
+	listener := postgres.NewListener(conn, "test_ch", 1)
 	s.Require().Error(listener.Start(nil)) //nolint:staticcheck // Start must reject nil context (SA1012)
 	listener.Stop(time.Second)
 }
 
 func (s *ListenerSuite) TestNotify_roundTrip() {
-	listener, err := postgres.NewListenerFromPool(s.ctx, s.pool, "test_ch")
+	listener, err := postgres.NewListenerFromPool(s.ctx, s.pool, "test_ch", 1)
 	s.Require().NoError(err)
 	defer listener.Stop(10 * time.Second)
 
@@ -120,7 +120,7 @@ func (s *ListenerSuite) TestNotify_roundTrip() {
 func (s *ListenerSuite) TestNotify_fourSequentialInOrder() {
 	const channel = "burst_ch"
 
-	listener, err := postgres.NewListenerFromPool(s.ctx, s.pool, channel)
+	listener, err := postgres.NewListenerFromPool(s.ctx, s.pool, channel, 1)
 	s.Require().NoError(err)
 	defer listener.Stop(10 * time.Second)
 
@@ -132,7 +132,7 @@ func (s *ListenerSuite) TestNotify_fourSequentialInOrder() {
 
 	for i := range 4 {
 		want := strconv.Itoa(i)
-		_, err := publisher.Exec(s.ctx, fmt.Sprintf("NOTIFY burst_ch, '%s'", want))
+		_, err = publisher.Exec(s.ctx, fmt.Sprintf("NOTIFY burst_ch, '%s'", want))
 		s.Require().NoError(err)
 
 		select {
@@ -149,7 +149,7 @@ func (s *ListenerSuite) TestNotify_fourSequentialInOrder() {
 }
 
 func (s *ListenerSuite) TestNotify_defaultNotificationBufferOne() {
-	listener, err := postgres.NewListenerFromPool(s.ctx, s.pool, "cap_default_ch")
+	listener, err := postgres.NewListenerFromPool(s.ctx, s.pool, "cap_default_ch", 0)
 	s.Require().NoError(err)
 	defer listener.Stop(10 * time.Second)
 
@@ -160,9 +160,8 @@ func (s *ListenerSuite) TestNotify_defaultNotificationBufferOne() {
 func (s *ListenerSuite) TestNotify_fourBufferedBurstBeforeReceive() {
 	const channel = "buffer_burst_ch"
 
-	listener, err := postgres.NewListenerFromPool(s.ctx, s.pool, channel)
+	listener, err := postgres.NewListenerFromPool(s.ctx, s.pool, channel, 4)
 	s.Require().NoError(err)
-	listener.NotificationBuffer = 4
 	defer listener.Stop(10 * time.Second)
 
 	s.Require().NoError(listener.Start(s.ctx))
@@ -197,7 +196,7 @@ func (s *ListenerSuite) TestNotify_fourBufferedBurstBeforeReceive() {
 func (s *ListenerSuite) TestNotify_quotedChannel_casePreserved() {
 	const channel = "MyNotifyChan"
 
-	listener, err := postgres.NewListenerFromPool(s.ctx, s.pool, channel)
+	listener, err := postgres.NewListenerFromPool(s.ctx, s.pool, channel, 1)
 	s.Require().NoError(err)
 	defer listener.Stop(10 * time.Second)
 

@@ -19,13 +19,12 @@ type (
 	Notifications = pgconn.Notification
 
 	Listener struct {
-		channel   string
-		mu        sync.Mutex
-		onceStart sync.Once
-		onceStop  sync.Once
-		wgListen  sync.WaitGroup // started via Go; Wait in Stop before UNLISTEN on the same conn
-		// NotificationBuffer is the capacity of Notifications() channel. Set before Start; zero or negative defaults to 1.
-		NotificationBuffer int
+		channel            string
+		mu                 sync.Mutex
+		onceStart          sync.Once
+		onceStop           sync.Once
+		wgListen           sync.WaitGroup // started via Go; Wait in Stop before UNLISTEN on the same conn
+		notificationBuffer int            // capacity of notificationsCh; from NewListener / NewListenerFromPool; <1 treated as 1
 		notificationsCh    chan *Notifications
 		err                error
 		conn               *DBConn
@@ -33,16 +32,19 @@ type (
 	}
 )
 
-// NewListener creates and returns a new Listener instance for the specified database connection and channel.
-func NewListener(conn *DBConn, channel string) *Listener {
+// NewListener creates a new Listener for channel on conn. notificationBuffer is the capacity of Notifications();
+// values less than 1 are treated as 1.
+func NewListener(conn *DBConn, channel string, notificationBuffer int) *Listener {
 	return &Listener{
-		channel: channel,
-		conn:    conn,
+		channel:            channel,
+		conn:               conn,
+		notificationBuffer: notificationBuffer,
 	}
 }
 
-// NewListenerFromPool creates a Listener instance using a connection from the provided pool and the specified channel.
-func NewListenerFromPool(ctx context.Context, pool *DBPool, channel string) (*Listener, error) {
+// NewListenerFromPool acquires a connection from pool and returns a Listener for channel.
+// notificationBuffer is the capacity of Notifications(); values less than 1 are treated as 1.
+func NewListenerFromPool(ctx context.Context, pool *DBPool, channel string, notificationBuffer int) (*Listener, error) {
 	if pool == nil {
 		return nil, errors.New("pool is nil")
 	}
@@ -52,7 +54,7 @@ func NewListenerFromPool(ctx context.Context, pool *DBPool, channel string) (*Li
 		return nil, err
 	}
 
-	return NewListener(conn, channel), nil
+	return NewListener(conn, channel, notificationBuffer), nil
 }
 
 func (l *Listener) setErr(err error) {
@@ -88,7 +90,7 @@ func (l *Listener) Start(ctx context.Context) error {
 			return
 		}
 
-		buf := max(l.NotificationBuffer, 1)
+		buf := max(l.notificationBuffer, 1)
 		l.notificationsCh = make(chan *pgconn.Notification, buf)
 		listenCtx := cancellable
 		l.wgListen.Go(func() {
