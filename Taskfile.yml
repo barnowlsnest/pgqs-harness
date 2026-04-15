@@ -21,9 +21,9 @@ tasks:
 
   build:
     cmds:
-      - go build .
+      - go build ./postgres/...
 
   test:
     cmds:
       - go clean -testcache
-      - go test -v -race -timeout 5m ./...
+      - go test -v -race -timeout 5m -tags integration ./postgres/...
