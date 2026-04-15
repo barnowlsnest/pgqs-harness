@@ -83,7 +83,6 @@ func (l *Listener) Start(ctx context.Context) error {
 	l.onceStart.Do(func() {
 		var cancellable context.Context
 		cancellable, l.cancelFunc = context.WithCancel(ctx)
-		defer l.cancelFunc()
 		listenSQL := fmt.Sprintf("LISTEN %q;", l.channel)
 		if cmd, err := l.conn.Exec(ctx, listenSQL); err != nil {
 			log.Error(err, log.F("cmd", cmd.String()))
