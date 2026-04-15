@@ -21,7 +21,7 @@ tasks:
 
   build:
     cmds:
-      - go build .
+      - go build ./postgres/...
 
   test:
     cmds:
