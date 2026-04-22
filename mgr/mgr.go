@@ -81,10 +81,6 @@ func (cfg *Config) validate() error {
 		return errors.New("db url is required")
 	}
 
-	if cfg.TargetSchema == "" {
-		return errors.New("target schema is required")
-	}
-
 	if cfg.EmbeddedSRC == nil {
 		return errors.New("embedded source driver is required")
 	}
