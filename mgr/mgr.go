@@ -62,9 +62,12 @@ func newMigration(dbURL, targetSchema string, embeddedSRC source.Driver) (*migra
 	if err != nil {
 		return nil, err
 	}
-	q := u.Query()
-	q.Set("search_path", targetSchema)
-	u.RawQuery = q.Encode()
+
+	if targetSchema != "" {
+		q := u.Query()
+		q.Set("search_path", targetSchema)
+		u.RawQuery = q.Encode()
+	}
 
 	return migrate.NewWithSourceInstance("iofs", embeddedSRC, u.String())
 }
