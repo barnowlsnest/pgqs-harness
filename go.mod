@@ -1,6 +1,6 @@
 module github.com/barnowlsnest/pgqs-harness
 
-go 1.26.2
+go 1.26.5
 
 require (
 	github.com/barnowlsnest/go-asynctasklib/v2 v2.3.0
