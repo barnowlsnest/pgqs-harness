@@ -1,6 +1,6 @@
 # pgqs-harness
 
-Shared PostgreSQL infrastructure library for PGQS services. Provides connection pool management, `LISTEN`/`NOTIFY` support, SQL query building, schema migrations, and configuration helpers built on top of [pgx](https://github.com/jackc/pgx).
+Shared PostgreSQL infrastructure library for PGQS services. Provides connection pool management, `LISTEN`/`NOTIFY` support, SQL query building, schema migrations, a generic CRUD DAO, and configuration helpers built on top of [pgx](https://github.com/jackc/pgx).
 
 ## Packages
 
@@ -31,6 +31,20 @@ Schema migration runner built on [golang-migrate](https://github.com/golang-migr
 | `DBURL`        | PostgreSQL connection URL                                   |
 | `TargetSchema` | Optional schema name — sets `search_path` on the connection |
 | `EmbeddedSRC`  | `source.Driver` pointing at embedded SQL migration files    |
+
+### `db`
+
+Application-facing layer built on `postgres` and `mgr`.
+
+| Symbol                                                    | Description                                                                        |
+|----------------------------------------------------------|-----------------------------------------------------------------------------------|
+| `RollOut(ctx, embedFS, dbURL, dir)`                       | Builds an `iofs` source from an `embed.FS` and runs migrations up                  |
+| `RollDown(ctx, embedFS, dbURL, dir)`                      | Same, rolling all migrations back                                                  |
+| `NewBaseDAO[T](schema, table, pool)`                      | Generic CRUD DAO over a schema-qualified table; struct fields mapped via `db:` tags |
+
+`BaseDAO[T]` methods: `Create`, `GetByID`, `Update`, `Delete`, `GetN`, `GetAll`, `Find` (ANDs variadic
+`CriteriaFunc` predicates), plus `Validate` (pings the pool). Options: `WithIDColumn` (default `id`, omitted
+on writes so the database assigns it), `WithPingTimeout`. Missing rows return `db.ErrNotFound`.
 
 ## Configuration
 
@@ -69,6 +83,20 @@ err = mgr.Up(ctx, &mgr.Config{
     TargetSchema: "tenant_xyz",
     EmbeddedSRC:  migrationsDriver,
 })
+
+// ...or from an embed.FS directly
+//go:embed migrations/*.sql
+var migrationsFS embed.FS
+err = db.RollOut(ctx, &migrationsFS, cfg.DBUrl(), "migrations")
+
+// Generic CRUD
+type Order struct {
+    ID     uint64 `db:"id"`
+    Status string `db:"status"`
+}
+dao := db.NewBaseDAO[Order]("public", "orders", pool)
+o, err := dao.Create(ctx, &Order{Status: "new"})
+open, err := dao.Find(ctx, func() exp.Expression { return goqu.C("status").Eq("new") })
 ```
 
 ## Development

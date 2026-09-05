@@ -3,7 +3,7 @@
 version: '3'
 
 env:
-  MODULE_PATH: github.com/barnowlsnest/pgqs-harnerss
+  MODULE_PATH: github.com/barnowlsnest/pgqs-harness
 
 tasks:
   update:
