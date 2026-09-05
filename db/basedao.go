@@ -9,6 +9,7 @@ import (
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/barnowlsnest/pgqs-harness/postgres"
 )
@@ -26,12 +27,22 @@ const (
 )
 
 type (
+	// Querier is the subset of pgx methods BaseDAO needs to issue statements.
+	// Both *pgxpool.Pool and pgx.Tx satisfy it, so a DAO can run against the
+	// pool directly or be bound to a transaction via Tx.
+	Querier interface {
+		Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+		Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+		QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+	}
+
 	BaseDAO[T any] struct {
 		schema      string
 		table       string
 		idColumn    string
 		pingTimeout time.Duration
 		pool        *postgres.DBPool
+		q           Querier
 	}
 
 	// CriteriaFunc yields a single goqu WHERE expression. Find ANDs every
@@ -45,8 +56,18 @@ func NewBaseDAO[T any](schema, table string, pool *postgres.DBPool) *BaseDAO[T] 
 		table:       table,
 		idColumn:    defaultIDColumn,
 		pool:        pool,
+		q:           pool,
 		pingTimeout: defaultPingTimeout,
 	}
+}
+
+// Tx returns a shallow copy of the DAO whose statements run on tx instead of
+// the pool. The pool reference is retained so Pool, Release and Validate keep
+// working; the caller owns the transaction lifecycle (see RunInTx).
+func (r *BaseDAO[T]) Tx(tx pgx.Tx) *BaseDAO[T] {
+	clone := *r
+	clone.q = tx
+	return &clone
 }
 
 func (r *BaseDAO[T]) WithPingTimeout(timeout time.Duration) *BaseDAO[T] {
@@ -122,7 +143,7 @@ func (r *BaseDAO[T]) Delete(ctx context.Context, id uint64) error {
 		return err
 	}
 
-	tag, err := r.pool.Exec(ctx, sql, args...)
+	tag, err := r.q.Exec(ctx, sql, args...)
 	if err != nil {
 		return err
 	}
@@ -213,7 +234,7 @@ func (r *BaseDAO[T]) Validate() error {
 }
 
 func (r *BaseDAO[T]) queryOne(ctx context.Context, sql string, args []any) (*T, error) {
-	rows, err := r.pool.Query(ctx, sql, args...)
+	rows, err := r.q.Query(ctx, sql, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -230,7 +251,7 @@ func (r *BaseDAO[T]) queryOne(ctx context.Context, sql string, args []any) (*T, 
 }
 
 func (r *BaseDAO[T]) queryMany(ctx context.Context, sql string, args []any) ([]*T, error) {
-	rows, err := r.pool.Query(ctx, sql, args...)
+	rows, err := r.q.Query(ctx, sql, args...)
 	if err != nil {
 		return nil, err
 	}

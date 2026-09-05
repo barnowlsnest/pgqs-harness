@@ -57,6 +57,11 @@ Thin wrapper over `golang-migrate/v4`. `Up`/`Down` take a `Config{DBURL, TargetS
   **omits the id column** on write so the DB assigns it; `pgx.RowTo*StructByNameLax` scans results.
   Not-found is normalized to `ErrNotFound`. `idColumn` defaults to `"id"` (override with `WithIDColumn`).
   `Find` ANDs together variadic `CriteriaFunc` closures that each yield a `goqu` expression.
+  Statements run through a `Querier` interface (satisfied by both `*pgxpool.Pool` and `pgx.Tx`);
+  `dao.Tx(tx)` returns a shallow copy bound to a transaction while keeping the pool ref for
+  `Pool`/`Release`/`Validate`.
+- `tx.go`: `RunInTx(ctx, pool, func(tx pgx.Tx) error)` — wraps `pgx.BeginFunc` (commit on nil, rollback
+  otherwise). Bind DAOs inside the closure with `dao.Tx(tx)` to run several across one transaction.
 
 ## Conventions
 
