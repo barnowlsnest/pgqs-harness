@@ -22,8 +22,11 @@ task update  # go mod tidy (sets GOPRIVATE=github.com/barnowlsnest/*)
 Run a single test:
 
 ```sh
-go test -race -tags integration -run TestBaseDAOSuite/TestCreate ./db/...
+go test -race -tags integration -run TestBaseDAOSuite/TestGetAll_returnsEveryRow ./db/...
 ```
+
+- `db/` has two `testify/suite` entrypoints: `TestBaseDAOSuite` and `TestMigrateSuite`. Subtests are the
+  suite method names (e.g. `TestGetN_limitsResults`), so `-run TestBaseDAOSuite/<Method>` targets one case.
 
 - Integration tests are gated by the `integration` build tag and the `//go:build integration` constraint;
   without the tag most test files compile to nothing.
@@ -41,7 +44,8 @@ Three packages, layered bottom-up:
   (`task.go` supplies the retry hooks): 5 attempts, 1s apart. `DBPool` is a type alias for `pgxpool.Pool`.
 - `listen.go`: `Listener` wraps one acquired `*pgxpool.Conn` for `LISTEN`/`NOTIFY`. `Start` is `sync.Once`,
   spawns a goroutine feeding a buffered `Notifications()` channel; `Stop` cancels, waits, `UNLISTEN`s, and
-  releases the conn. The listener holds a dedicated connection for its whole lifetime.
+  releases the conn. The listener holds a dedicated connection for its whole lifetime. Errors from the
+  listen loop are not returned — they surface asynchronously via `Err()` (set internally by `setErr`).
 - `sql.go`: `SQL()` returns a singleton `goqu` postgres dialect for query building.
 
 ### `mgr` — migration runner
@@ -55,8 +59,10 @@ Thin wrapper over `golang-migrate/v4`. `Up`/`Down` take a `Config{DBURL, TargetS
 - `basedao.go`: `BaseDAO[T]` — generic CRUD over a schema-qualified table using a `*postgres.DBPool`.
   Struct fields are mapped via `db:"..."` tags. Reflection (`toRecord`, `idValue`) builds `goqu.Record`s and
   **omits the id column** on write so the DB assigns it; `pgx.RowTo*StructByNameLax` scans results.
-  Not-found is normalized to `ErrNotFound`. `idColumn` defaults to `"id"` (override with `WithIDColumn`).
-  `Find` ANDs together variadic `CriteriaFunc` closures that each yield a `goqu` expression.
+  Not-found is normalized to `ErrNotFound`. `idColumn` defaults to `"id"` (override with `WithIDColumn`;
+  `WithPingTimeout` sets the `Validate` ping deadline — both are chainable on the DAO).
+  Read methods: `GetByID`, `GetN(limit)`, `GetAll`, and `Find`, which ANDs together variadic
+  `CriteriaFunc` closures that each yield a `goqu` expression.
   Statements run through a `Querier` interface (satisfied by both `*pgxpool.Pool` and `pgx.Tx`);
   `dao.Tx(tx)` returns a shallow copy bound to a transaction while keeping the pool ref for
   `Pool`/`Release`/`Validate`.

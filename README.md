@@ -41,10 +41,16 @@ Application-facing layer built on `postgres` and `mgr`.
 | `RollOut(ctx, embedFS, dbURL, dir)`                       | Builds an `iofs` source from an `embed.FS` and runs migrations up                  |
 | `RollDown(ctx, embedFS, dbURL, dir)`                      | Same, rolling all migrations back                                                  |
 | `NewBaseDAO[T](schema, table, pool)`                      | Generic CRUD DAO over a schema-qualified table; struct fields mapped via `db:` tags |
+| `RunInTx(ctx, pool, fn)`                                  | Runs `fn` in a transaction — commit on `nil`, rollback on error or panic           |
 
 `BaseDAO[T]` methods: `Create`, `GetByID`, `Update`, `Delete`, `GetN`, `GetAll`, `Find` (ANDs variadic
 `CriteriaFunc` predicates), plus `Validate` (pings the pool). Options: `WithIDColumn` (default `id`, omitted
-on writes so the database assigns it), `WithPingTimeout`. Missing rows return `db.ErrNotFound`.
+on writes so the database assigns it), `WithPingTimeout` (deadline for the `Validate` ping). Missing rows
+return `db.ErrNotFound`.
+
+`dao.Tx(tx)` returns a shallow copy of the DAO bound to a `pgx.Tx`; use it inside a `RunInTx` closure to run
+several DAOs across one transaction. Statements execute through a `Querier` interface satisfied by both
+`*pgxpool.Pool` and `pgx.Tx`.
 
 ## Configuration
 
@@ -97,6 +103,15 @@ type Order struct {
 dao := db.NewBaseDAO[Order]("public", "orders", pool)
 o, err := dao.Create(ctx, &Order{Status: "new"})
 open, err := dao.Find(ctx, func() exp.Expression { return goqu.C("status").Eq("new") })
+
+// Several DAOs in one transaction
+err = db.RunInTx(ctx, pool, func(tx pgx.Tx) error {
+    if _, err := orderDAO.Tx(tx).Create(ctx, &Order{Status: "new"}); err != nil {
+        return err
+    }
+    _, err := itemDAO.Tx(tx).Create(ctx, &Item{})
+    return err
+})
 ```
 
 ## Development
