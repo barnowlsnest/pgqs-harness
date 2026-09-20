@@ -92,7 +92,7 @@ func (r *BaseDAO[T]) Create(ctx context.Context, entity *T) (*T, error) {
 	return r.queryOne(ctx, sql, args)
 }
 
-func (r *BaseDAO[T]) GetByID[K any](ctx context.Context, id K) (*T, error) {
+func (r *BaseDAO[T]) GetByID[K comparable](ctx context.Context, id K) (*T, error) {
 	sql, args, err := postgres.SQL().
 		From(r.relation()).
 		Where(goqu.C(idColumn).Eq(id)).
@@ -125,7 +125,7 @@ func (r *BaseDAO[T]) Update(ctx context.Context, entity *T) (*T, error) {
 	return r.queryOne(ctx, sql, args)
 }
 
-func (r *BaseDAO[T]) Delete[K any](ctx context.Context, id K) error {
+func (r *BaseDAO[T]) Delete[K comparable](ctx context.Context, id K) error {
 	sql, args, err := postgres.SQL().
 		Delete(r.relation()).
 		Where(goqu.C(idColumn).Eq(id)).
