@@ -275,10 +275,23 @@ func (r *BaseDAO[T]) toRecord(entity *T, keyColumn string) goqu.Record {
 		if column == "" || column == "-" || column == keyColumn {
 			continue
 		}
-		record[column] = v.Field(i).Interface()
+		record[column] = columnValue(v.Field(i))
 	}
 
 	return record
+}
+
+// columnValue prepares a struct field for goqu. goqu expands slice values into
+// SQL expression lists and recognizes only the unnamed []byte as a scalar, so a
+// named byte slice such as json.RawMessage is converted before it is handed
+// over; otherwise it renders as ($1, $2, ...) per byte, or as an empty () when
+// nil.
+func columnValue(field reflect.Value) any {
+	if field.Kind() == reflect.Slice && field.Type().Elem().Kind() == reflect.Uint8 {
+		return field.Bytes()
+	}
+
+	return field.Interface()
 }
 
 // colValue reads the value of the field tagged `db:"<column>"` from entity.
