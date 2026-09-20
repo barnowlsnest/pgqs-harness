@@ -110,15 +110,19 @@ func (r *BaseDAO[T]) GetByCol[K comparable](ctx context.Context, colName string,
 }
 
 func (r *BaseDAO[T]) Update(ctx context.Context, entity *T) (*T, error) {
+	return r.UpdateWithColName(ctx, idColumn, entity)
+}
+
+func (r *BaseDAO[T]) UpdateWithColName(ctx context.Context, pk string, entity *T) (*T, error) {
 	id, ok := r.idValue(entity)
 	if !ok {
-		return nil, errors.New("entity has no " + idColumn + " field")
+		return nil, errors.New("entity has no " + pk + " field")
 	}
 
 	sql, args, err := postgres.SQL().
 		Update(r.relation()).
 		Set(r.toRecord(entity)).
-		Where(goqu.C(idColumn).Eq(id)).
+		Where(goqu.C(pk).Eq(id)).
 		Returning(goqu.Star()).
 		Prepared(true).
 		ToSQL()
