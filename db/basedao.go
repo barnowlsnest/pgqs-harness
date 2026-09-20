@@ -81,7 +81,7 @@ func (r *BaseDAO[T]) relation() exp.IdentifierExpression {
 func (r *BaseDAO[T]) Create(ctx context.Context, entity *T) (*T, error) {
 	sql, args, err := postgres.SQL().
 		Insert(r.relation()).
-		Rows(r.toRecord(entity)).
+		Rows(r.toRecord(entity, idColumn)).
 		Returning(goqu.Star()).
 		Prepared(true).
 		ToSQL()
@@ -114,14 +114,14 @@ func (r *BaseDAO[T]) Update(ctx context.Context, entity *T) (*T, error) {
 }
 
 func (r *BaseDAO[T]) UpdateWithColName(ctx context.Context, pk string, entity *T) (*T, error) {
-	id, ok := r.idValue(entity)
+	id, ok := r.colValue(entity, pk)
 	if !ok {
 		return nil, errors.New("entity has no " + pk + " field")
 	}
 
 	sql, args, err := postgres.SQL().
 		Update(r.relation()).
-		Set(r.toRecord(entity)).
+		Set(r.toRecord(entity, pk)).
 		Where(goqu.C(pk).Eq(id)).
 		Returning(goqu.Star()).
 		Prepared(true).
@@ -263,16 +263,16 @@ func (r *BaseDAO[T]) queryMany(ctx context.Context, sql string, args []any) ([]*
 	return pgx.CollectRows(rows, pgx.RowToAddrOfStructByNameLax[T])
 }
 
-// toRecord builds a goqu.Record from the `db`-tagged fields of entity,
-// omitting the primary-key column so the database assigns/preserves it.
-func (r *BaseDAO[T]) toRecord(entity *T) goqu.Record {
+// toRecord builds a goqu.Record from the `db`-tagged fields of entity, omitting
+// keyColumn so the database assigns/preserves the key.
+func (r *BaseDAO[T]) toRecord(entity *T, keyColumn string) goqu.Record {
 	v := reflect.ValueOf(entity).Elem()
 	t := v.Type()
 
 	record := make(goqu.Record, t.NumField())
 	for i := range t.NumField() {
 		column := t.Field(i).Tag.Get("db")
-		if column == "" || column == "-" || column == idColumn {
+		if column == "" || column == "-" || column == keyColumn {
 			continue
 		}
 		record[column] = v.Field(i).Interface()
@@ -281,13 +281,13 @@ func (r *BaseDAO[T]) toRecord(entity *T) goqu.Record {
 	return record
 }
 
-// idValue reads the primary-key field value from entity.
-func (r *BaseDAO[T]) idValue(entity *T) (any, bool) {
+// colValue reads the value of the field tagged `db:"<column>"` from entity.
+func (r *BaseDAO[T]) colValue(entity *T, column string) (any, bool) {
 	v := reflect.ValueOf(entity).Elem()
 	t := v.Type()
 
 	for i := range t.NumField() {
-		if t.Field(i).Tag.Get("db") == idColumn {
+		if t.Field(i).Tag.Get("db") == column {
 			return v.Field(i).Interface(), true
 		}
 	}
