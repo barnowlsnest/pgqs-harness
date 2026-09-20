@@ -59,8 +59,8 @@ Thin wrapper over `golang-migrate/v4`. `Up`/`Down` take a `Config{DBURL, TargetS
 - `basedao.go`: `BaseDAO[T]` — generic CRUD over a schema-qualified table using a `*postgres.DBPool`.
   Struct fields are mapped via `db:"..."` tags. Reflection (`toRecord`, `idValue`) builds `goqu.Record`s and
   **omits the id column** on write so the DB assigns it; `pgx.RowTo*StructByNameLax` scans results.
-  Not-found is normalized to `ErrNotFound`. `idColumn` defaults to `"id"` (override with `WithIDColumn`;
-  `WithPingTimeout` sets the `Validate` ping deadline — both are chainable on the DAO).
+  Not-found is normalized to `ErrNotFound`. The primary-key column is always `id`;
+  `WithPingTimeout` sets the `Validate` ping deadline.
   Read methods: `GetByID`, `GetN(limit)`, `GetAll`, and `Find`, which ANDs together variadic
   `CriteriaFunc` closures that each yield a `goqu` expression.
   Statements run through a `Querier` interface (satisfied by both `*pgxpool.Pool` and `pgx.Tx`);

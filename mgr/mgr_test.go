@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 
-	_ "github.com/barnowlsnest/pgqs-harness/mgr"
+	_ "github.com/barnowlsnest/pgqs-harness/v2/mgr"
 )
 
 //go:embed testdata/migrations/*.sql

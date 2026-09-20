@@ -101,7 +101,7 @@ formatters:
   settings:
     goimports:
       local-prefixes:
-        - github.com/barnowlsnest/pgqs-harness
+        - github.com/barnowlsnest/pgqs-harness/v2
   exclusions:
     generated: lax
     paths:

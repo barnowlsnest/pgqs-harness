@@ -6,7 +6,7 @@ import (
 
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 
-	"github.com/barnowlsnest/pgqs-harness/mgr"
+	"github.com/barnowlsnest/pgqs-harness/v2/mgr"
 )
 
 // RollOut applies pgqs database migrations.
