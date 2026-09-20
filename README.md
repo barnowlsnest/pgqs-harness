@@ -44,8 +44,8 @@ Application-facing layer built on `postgres` and `mgr`.
 | `RunInTx(ctx, pool, fn)`                                  | Runs `fn` in a transaction — commit on `nil`, rollback on error or panic           |
 
 `BaseDAO[T]` methods: `Create`, `GetByID`, `Update`, `Delete`, `GetN`, `GetAll`, `Find` (ANDs variadic
-`CriteriaFunc` predicates), plus `Validate` (pings the pool). Options: `WithIDColumn` (default `id`, omitted
-on writes so the database assigns it), `WithPingTimeout` (deadline for the `Validate` ping). Missing rows
+`CriteriaFunc` predicates), plus `Validate` (pings the pool). The primary-key column is always `id` (omitted
+on writes so the database assigns it). Option: `WithPingTimeout` (deadline for the `Validate` ping). Missing rows
 return `db.ErrNotFound`.
 
 `dao.Tx(tx)` returns a shallow copy of the DAO bound to a `pgx.Tx`; use it inside a `RunInTx` closure to run

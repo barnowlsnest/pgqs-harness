@@ -9,12 +9,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/barnowlsnest/pgqs-harness/v2/postgres"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/suite"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
-
-	"github.com/barnowlsnest/pgqs-harness/postgres"
 )
 
 // nilListenCtx returns a nil [context.Context] for exercising Start's nil guard without passing

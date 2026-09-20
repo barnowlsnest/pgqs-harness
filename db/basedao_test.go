@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/suite"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 
-	"github.com/barnowlsnest/pgqs-harness/db"
-	"github.com/barnowlsnest/pgqs-harness/postgres"
+	"github.com/barnowlsnest/pgqs-harness/v2/db"
+	"github.com/barnowlsnest/pgqs-harness/v2/postgres"
 )
 
 const createWidgets = `

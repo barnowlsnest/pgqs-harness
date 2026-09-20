@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
-	"github.com/barnowlsnest/pgqs-harness/postgres"
+	"github.com/barnowlsnest/pgqs-harness/v2/postgres"
 )
 
 var (
@@ -23,7 +23,7 @@ var (
 
 const (
 	defaultPingTimeout = time.Second * 5
-	defaultIDColumn    = "id"
+	idColumn           = "id"
 )
 
 type (
@@ -39,7 +39,6 @@ type (
 	BaseDAO[T any] struct {
 		schema      string
 		table       string
-		idColumn    string
 		pingTimeout time.Duration
 		pool        *postgres.DBPool
 		q           Querier
@@ -54,7 +53,6 @@ func NewBaseDAO[T any](schema, table string, pool *postgres.DBPool) *BaseDAO[T] 
 	return &BaseDAO[T]{
 		schema:      schema,
 		table:       table,
-		idColumn:    defaultIDColumn,
 		pool:        pool,
 		q:           pool,
 		pingTimeout: defaultPingTimeout,
@@ -72,12 +70,6 @@ func (r *BaseDAO[T]) Tx(tx pgx.Tx) *BaseDAO[T] {
 
 func (r *BaseDAO[T]) WithPingTimeout(timeout time.Duration) *BaseDAO[T] {
 	r.pingTimeout = timeout
-	return r
-}
-
-// WithIDColumn overrides the primary-key column name used by GetByID, Update and Delete.
-func (r *BaseDAO[T]) WithIDColumn(name string) *BaseDAO[T] {
-	r.idColumn = name
 	return r
 }
 
@@ -100,10 +92,10 @@ func (r *BaseDAO[T]) Create(ctx context.Context, entity *T) (*T, error) {
 	return r.queryOne(ctx, sql, args)
 }
 
-func (r *BaseDAO[T]) GetByID(ctx context.Context, id uint64) (*T, error) {
+func (r *BaseDAO[T]) GetByID[K any](ctx context.Context, id K) (*T, error) {
 	sql, args, err := postgres.SQL().
 		From(r.relation()).
-		Where(goqu.C(r.idColumn).Eq(id)).
+		Where(goqu.C(idColumn).Eq(id)).
 		Prepared(true).
 		ToSQL()
 	if err != nil {
@@ -116,13 +108,13 @@ func (r *BaseDAO[T]) GetByID(ctx context.Context, id uint64) (*T, error) {
 func (r *BaseDAO[T]) Update(ctx context.Context, entity *T) (*T, error) {
 	id, ok := r.idValue(entity)
 	if !ok {
-		return nil, errors.New("entity has no " + r.idColumn + " field")
+		return nil, errors.New("entity has no " + idColumn + " field")
 	}
 
 	sql, args, err := postgres.SQL().
 		Update(r.relation()).
 		Set(r.toRecord(entity)).
-		Where(goqu.C(r.idColumn).Eq(id)).
+		Where(goqu.C(idColumn).Eq(id)).
 		Returning(goqu.Star()).
 		Prepared(true).
 		ToSQL()
@@ -133,10 +125,10 @@ func (r *BaseDAO[T]) Update(ctx context.Context, entity *T) (*T, error) {
 	return r.queryOne(ctx, sql, args)
 }
 
-func (r *BaseDAO[T]) Delete(ctx context.Context, id uint64) error {
+func (r *BaseDAO[T]) Delete[K any](ctx context.Context, id K) error {
 	sql, args, err := postgres.SQL().
 		Delete(r.relation()).
-		Where(goqu.C(r.idColumn).Eq(id)).
+		Where(goqu.C(idColumn).Eq(id)).
 		Prepared(true).
 		ToSQL()
 	if err != nil {
@@ -268,7 +260,7 @@ func (r *BaseDAO[T]) toRecord(entity *T) goqu.Record {
 	record := make(goqu.Record, t.NumField())
 	for i := range t.NumField() {
 		column := t.Field(i).Tag.Get("db")
-		if column == "" || column == "-" || column == r.idColumn {
+		if column == "" || column == "-" || column == idColumn {
 			continue
 		}
 		record[column] = v.Field(i).Interface()
@@ -283,7 +275,7 @@ func (r *BaseDAO[T]) idValue(entity *T) (any, bool) {
 	t := v.Type()
 
 	for i := range t.NumField() {
-		if t.Field(i).Tag.Get("db") == r.idColumn {
+		if t.Field(i).Tag.Get("db") == idColumn {
 			return v.Field(i).Interface(), true
 		}
 	}

@@ -5,7 +5,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/barnowlsnest/pgqs-harness/postgres"
+	"github.com/barnowlsnest/pgqs-harness/v2/postgres"
 )
 
 // RunInTx begins a transaction on pool, invokes fn with it, and commits when fn

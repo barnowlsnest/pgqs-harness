@@ -7,7 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/barnowlsnest/pgqs-harness/db"
+	"github.com/barnowlsnest/pgqs-harness/v2/db"
 )
 
 func (s *BaseDAOSuite) TestRunInTx_commitsOnSuccess() {
