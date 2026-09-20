@@ -93,9 +93,13 @@ func (r *BaseDAO[T]) Create(ctx context.Context, entity *T) (*T, error) {
 }
 
 func (r *BaseDAO[T]) GetByID[K comparable](ctx context.Context, id K) (*T, error) {
+	return r.GetByCol(ctx, idColumn, id)
+}
+
+func (r *BaseDAO[T]) GetByCol[K comparable](ctx context.Context, colName string, val K) (*T, error) {
 	sql, args, err := postgres.SQL().
 		From(r.relation()).
-		Where(goqu.C(idColumn).Eq(id)).
+		Where(goqu.C(colName).Eq(val)).
 		Prepared(true).
 		ToSQL()
 	if err != nil {
@@ -126,9 +130,13 @@ func (r *BaseDAO[T]) Update(ctx context.Context, entity *T) (*T, error) {
 }
 
 func (r *BaseDAO[T]) Delete[K comparable](ctx context.Context, id K) error {
+	return r.DeleteByCol(ctx, idColumn, id)
+}
+
+func (r *BaseDAO[T]) DeleteByCol[K comparable](ctx context.Context, colName string, val K) error {
 	sql, args, err := postgres.SQL().
 		Delete(r.relation()).
-		Where(goqu.C(idColumn).Eq(id)).
+		Where(goqu.C(colName).Eq(val)).
 		Prepared(true).
 		ToSQL()
 	if err != nil {
